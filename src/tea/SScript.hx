@@ -826,4 +826,155 @@ class SScript {
 		return this;
 	}
 
-	inline fu
+	inline function toString():String {
+		if (_destroyed)
+			return "null";
+
+		if (scriptFile != null && scriptFile.length > 0)
+			return scriptFile;
+
+		return "[SScript SScript]";
+	}
+
+	#if (sys)
+	/**
+		Checks for scripts in the provided path and returns them as an array.
+
+		Make sure `path` is a directory!
+
+		If `extensions` is not `null`, files' extensions will be checked.
+		Otherwise, only files with the `.hx` extensions will be checked and listed.
+
+		@param path The directory to check for. Nondirectory paths will be ignored.
+		@param extensions Optional extension to check in file names.
+		@return The script array.
+	**/
+	#else
+	/**
+		Checks for scripts in the provided path and returns them as an array.
+
+		This function will always return an empty array, because you are targeting an unsupported target.
+		@return An empty array.
+	**/
+	#end
+	public static function listScripts(path:String, ?extensions:Array<String>):Array<SScript> {
+		if (!path.endsWith('/'))
+			path += '/';
+
+		if (extensions == null || extensions.length < 1)
+			extensions = ['hx'];
+
+		var list:Array<SScript> = [];
+		#if sys
+		if (FileSystem.exists(path) && FileSystem.isDirectory(path)) {
+			var files:Array<String> = FileSystem.readDirectory(path);
+			for (i in files) {
+				var hasExtension:Bool = false;
+				for (l in extensions) {
+					if (i.endsWith(l)) {
+						hasExtension = true;
+						break;
+					}
+				}
+				if (hasExtension && FileSystem.exists(path + i))
+					list.push(new SScript(path + i));
+			}
+		}
+		#end
+
+		return list;
+	}
+
+	/**
+		This function makes this script **COMPLETELY** unusable and unrestorable.
+
+		If you don't want to destroy your script just yet, just set `active` to false!
+	**/
+	public function destroy():Void {
+		if (_destroyed)
+			return;
+
+		if (global.exists(script) && script != null && script.length > 0)
+			global.remove(script);
+		if (global.exists(scriptFile) && scriptFile != null && scriptFile.length > 0)
+			global.remove(scriptFile);
+
+		clear();
+		resetInterp();
+
+		customOrigin = null;
+		parser = null;
+		interp = null;
+		script = null;
+		scriptFile = null;
+		active = false;
+		notAllowedClasses = null;
+		lastReportedCallTime = -1;
+		lastReportedTime = -1;
+		ID = null;
+		parsingException = null;
+		returnValue = null;
+		_destroyed = true;
+	}
+
+	function get_variables():Map<String, Dynamic> {
+		if (_destroyed)
+			return null;
+
+		return interp.variables;
+	}
+
+	function setPackagePath(p):String {
+		if (_destroyed)
+			return null;
+
+		return packagePath = p;
+	}
+
+	function get_packagePath():String {
+		if (_destroyed)
+			return null;
+
+		return packagePath;
+	}
+
+	static function get_BlankReg():EReg {
+		return ~/^[\n\r\t]$/;
+	}
+
+	function set_customOrigin(value:String):String {
+		if (_destroyed)
+			return null;
+
+		@:privateAccess parser.origin = value;
+		return customOrigin = value;
+	}
+
+	static function set_defaultTypeCheck(value:Null<Bool>):Null<Bool> {
+		for (i in global) {
+			i.typeCheck = value == null ? false : value;
+			// i.execute();
+		}
+
+		return defaultTypeCheck = value;
+	}
+
+	static function set_defaultDebug(value:Null<Bool>):Null<Bool> {
+		for (i in global) {
+			i.debugTraces = value == null ? false : value;
+			// i.execute();
+		}
+
+		return defaultDebug = value;
+	}
+
+	function get_parsingExceptions():Array<Exception> {
+		if (_destroyed)
+			return null;
+
+		if (parsingException == null)
+			return [];
+
+		return @:privateAccess [parsingException.toException()];
+	}
+}
